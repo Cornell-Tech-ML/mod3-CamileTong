@@ -484,7 +484,42 @@ def _tensor_matrix_multiply(
     #    b) Copy into shared memory for b matrix
     #    c) Compute the dot produce for position c[i, j]
     # TODO: Implement for Task 3.4.
-    raise NotImplementedError("Need to implement for Task 3.4")
+    # Matrix dimensions
+    N, M, K = a_shape[1], b_shape[2], a_shape[2]  # A: N×K, B: K×M
 
+    # Compute C[i,j] = sum(A[i,k] * B[k,j])
+    result = 0.0
+    for block_idx in range(0, K, BLOCK_DIM):
+        # 1. Load data into shared memory
+        if i < N and block_idx + pj < K:
+            a_idx = (batch * a_batch_stride + 
+                    i * a_strides[1] + 
+                    (block_idx + pj) * a_strides[2])
+            a_shared[pi, pj] = a_storage[a_idx]
+        else:
+            a_shared[pi, pj] = 0.0
+
+        if j < M and block_idx + pi < K:
+            b_idx = (batch * b_batch_stride + 
+                    (block_idx + pi) * b_strides[1] + 
+                    j * b_strides[2])
+            b_shared[pi, pj] = b_storage[b_idx]
+        else:
+            b_shared[pi, pj] = 0.0
+
+        cuda.syncthreads()
+
+        # 2. Compute partial dot product for this block
+        for k in range(min(BLOCK_DIM, K - block_idx)):
+            result += a_shared[pi, k] * b_shared[k, pj]
+            
+        cuda.syncthreads()
+
+    # 3. Write final result to global memory
+    if i < N and j < M:
+        out_idx = (batch * out_strides[0] + 
+                  i * out_strides[1] + 
+                  j * out_strides[2])
+        out[out_idx] = result
 
 tensor_matrix_multiply = jit(_tensor_matrix_multiply)
