@@ -314,7 +314,7 @@ None
 ![Image](./img/split_cpu.png)
 
 * XOR GPU
-![Image](./img/xor_gpu.png)
+![Image](./img/xor_gpu.jpg)
 
 * XOR CPU
 ![Image](./img/xor_cpu.png)
