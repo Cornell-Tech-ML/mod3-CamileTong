@@ -299,3 +299,28 @@ Parallel region 0 (loop #7) had 0 loop(s) fused and 2 loop(s) serialized as part
 Allocation hoisting:
 No allocation hoisting found
 None
+
+# Task 3.5
+* Simple GPU
+![Image](./img/simple_gpu.png)
+
+* Simple CPU
+![Image](./img/simple_cpu.png)
+
+* Split GPU
+![Image](./img/split_gpu.png)
+
+* Split CPU
+![Image](./img/split_cpu.png)
+
+* XOR GPU
+![Image](./img/xor_gpu.png)
+
+* XOR CPU
+![Image](./img/xor_cpu.png)
+
+* Large GPU
+![Image](./img/large_gpu.png)
+
+* Large CPU
+![Image](./img/large_cpu.png)
