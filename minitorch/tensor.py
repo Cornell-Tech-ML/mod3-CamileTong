@@ -307,7 +307,7 @@ class Tensor:
     def __lt__(self, b: TensorLike) -> Tensor:
         return LT.apply(self, self._ensure_tensor(b))
 
-    def __eq__(self, b: TensorLike) -> Tensor: # type: ignore[override]
+    def __eq__(self, b: TensorLike) -> Tensor:  # type: ignore[override]
         return EQ.apply(self, self._ensure_tensor(b))
 
     def __gt__(self, b: TensorLike) -> Tensor:
@@ -329,7 +329,7 @@ class Tensor:
         else:
             return All.apply(self, self._ensure_tensor(dim))
 
-    def is_close(self, b: TensorLike) -> Tensor:
+    def is_close(self, b: Tensor) -> Tensor:
         """Check if the tensor is close to another tensor."""
         return IsClose.apply(self, b)
 

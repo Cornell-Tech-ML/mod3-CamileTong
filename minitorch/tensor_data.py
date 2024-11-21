@@ -138,6 +138,7 @@ def shape_broadcast(shape1: UserShape, shape2: UserShape) -> UserShape:
                 raise IndexingError(f"Cannot broadcast shape {shape1} to {shape2}")
     return tuple(reversed(c_rev))
 
+
 def strides_from_shape(shape: UserShape) -> UserStrides:
     """Return a contiguous stride for a shape"""
     layout = [1]
@@ -273,7 +274,11 @@ class TensorData:
         ), f"Must give a position to each dimension. Shape: {self.shape} Order: {order}"
 
         # Task 2.1.
-        return TensorData(self._storage, tuple(self.shape[i] for i in order), tuple(self.strides[i] for i in order))
+        return TensorData(
+            self._storage,
+            tuple(self.shape[i] for i in order),
+            tuple(self.strides[i] for i in order),
+        )
 
     def to_string(self) -> str:
         """Convert to string"""

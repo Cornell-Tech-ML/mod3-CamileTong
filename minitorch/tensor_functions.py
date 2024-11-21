@@ -454,9 +454,7 @@ class IsClose(Function):
 
 class Permute(Function):
     @staticmethod
-    def forward(
-        ctx: Context, a: Tensor, order: Tensor
-    ) -> Tensor:
+    def forward(ctx: Context, a: Tensor, order: Tensor) -> Tensor:
         """Permute the input tensor."""
         ctx.save_for_backward(order)
         return a._new(a._tensor.permute(*[int(order[i]) for i in range(order.size)]))

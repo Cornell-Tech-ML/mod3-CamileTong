@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from typing import Callable, Optional
 
     from .tensor import Tensor
-    from .tensor_data import Index, Shape, Storage, Strides
+    from .tensor_data import Shape, Storage, Strides
 
 # TIP: Use `NUMBA_DISABLE_JIT=1 pytest tests/ -m task3_1` to run these tests without JIT.
 
@@ -30,6 +30,7 @@ Fn = TypeVar("Fn")
 
 
 def njit(fn: Fn, **kwargs: Any) -> Fn:
+    """JIT compile a function."""
     return _njit(inline="always", **kwargs)(fn)  # type: ignore
 
 
@@ -169,11 +170,10 @@ def tensor_map(
         in_strides: Strides,
     ) -> None:
         # TODO: 3.1
-        is_aligned = (
-            np.array_equal(out_shape, in_shape) and 
-            np.array_equal(out_strides, in_strides)
+        is_aligned = np.array_equal(out_shape, in_shape) and np.array_equal(
+            out_strides, in_strides
         )
-        
+
         # Fast path
         if is_aligned:
             for i in prange(len(out)):
@@ -182,7 +182,7 @@ def tensor_map(
         else:
             out_index = np.empty(MAX_DIMS, np.int32)
             in_index = np.empty(MAX_DIMS, np.int32)
-            
+
             for i in prange(len(out)):
                 to_index(i, out_shape, out_index)
                 # broadcasting
@@ -230,22 +230,24 @@ def tensor_zip(
     ) -> None:
         # TODO: 3.1
         is_aligned = (
-            np.array_equal(out_shape, a_shape) and 
-            np.array_equal(out_shape, b_shape) and
-            np.array_equal(out_strides, a_strides) and 
-            np.array_equal(out_strides, b_strides)
+            np.array_equal(out_shape, a_shape)
+            and np.array_equal(out_shape, b_shape)
+            and np.array_equal(out_strides, a_strides)
+            and np.array_equal(out_strides, b_strides)
         )
-        
+
         # Fast path - when tensors are aligned
         if is_aligned:
             for i in prange(len(out)):
-                out[i] = fn(float(a_storage[i]), float(b_storage[i]))  # Convert to float
+                out[i] = fn(
+                    float(a_storage[i]), float(b_storage[i])
+                )  # Convert to float
         # Slow path - handle broadcasting
         else:
             out_index = np.empty(MAX_DIMS, np.int32)
             a_index = np.empty(MAX_DIMS, np.int32)
             b_index = np.empty(MAX_DIMS, np.int32)
-            
+
             for i in prange(len(out)):
                 to_index(i, out_shape, out_index)
                 broadcast_index(out_index, out_shape, a_shape, a_index)
@@ -253,7 +255,9 @@ def tensor_zip(
                 out_pos = index_to_position(out_index, out_strides)
                 a_pos = index_to_position(a_index, a_strides)
                 b_pos = index_to_position(b_index, b_strides)
-                out[out_pos] = fn(float(a_storage[a_pos]), float(b_storage[b_pos]))  # Convert to float
+                out[out_pos] = fn(
+                    float(a_storage[a_pos]), float(b_storage[b_pos])
+                )  # Convert to float
 
     return njit(_zip, parallel=True)  # type: ignore
 
@@ -290,21 +294,21 @@ def tensor_reduce(
     ) -> None:
         reduce_size = a_shape[reduce_dim]
         reduce_stride = a_strides[reduce_dim]
-        
+
         # Process each output position in parallel
         for i in prange(len(out)):
             out_index = np.empty(MAX_DIMS, np.int32)
             to_index(i, out_shape, out_index)
-            
+
             # Get positions
             out_pos = index_to_position(out_index, out_strides)
             a_pos = index_to_position(out_index, a_strides)
             acc = out[out_pos]
-            
+
             for _ in range(reduce_size):
                 acc = fn(acc, a_storage[a_pos])
                 a_pos += reduce_stride
-                
+
             out[out_pos] = acc
 
     return njit(_reduce, parallel=True)  # type: ignore
@@ -328,9 +332,9 @@ def _tensor_matrix_multiply(
 
     # Get matrix dimensions
     batch_size = out_shape[0]  # Number of matrices in batch
-    rows = a_shape[-2]         # Number of rows in output
-    cols = b_shape[-1]         # Number of columns in output
-    reduce_dim = a_shape[-1]   # Dimension to sum over (a's cols = b's rows)
+    rows = a_shape[-2]  # Number of rows in output
+    cols = b_shape[-1]  # Number of columns in output
+    reduce_dim = a_shape[-1]  # Dimension to sum over (a's cols = b's rows)
 
     # Main matrix multiplication loop
     for batch in prange(batch_size):
@@ -338,21 +342,24 @@ def _tensor_matrix_multiply(
             for col in prange(cols):
                 # Calculate position in output tensor
                 out_pos = (
-                    batch * out_strides[0] + 
-                    row * out_strides[1] + 
-                    col * out_strides[2]
+                    batch * out_strides[0] + row * out_strides[1] + col * out_strides[2]
                 )
-                
+
                 # Compute dot product
                 acc = 0.0
                 for k in range(reduce_dim):
                     # Get positions in input tensors
-                    a_pos = batch * a_batch_stride + row * a_strides[1] + k * a_strides[2]
-                    b_pos = batch * b_batch_stride + k * b_strides[1] + col * b_strides[2]
-                    
+                    a_pos = (
+                        batch * a_batch_stride + row * a_strides[1] + k * a_strides[2]
+                    )
+                    b_pos = (
+                        batch * b_batch_stride + k * b_strides[1] + col * b_strides[2]
+                    )
+
                     acc += a_storage[a_pos] * b_storage[b_pos]
-                
+
                 out[out_pos] = acc
+
 
 tensor_matrix_multiply = njit(_tensor_matrix_multiply, parallel=True)
 assert tensor_matrix_multiply is not None
