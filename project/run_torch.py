@@ -25,11 +25,16 @@ class Network(torch.nn.Module):
 class Linear(torch.nn.Module):
     def __init__(self, in_size, out_size):
         super().__init__()
-        self.weight = torch.nn.Parameter(2 * (torch.rand((in_size, out_size)) - 0.5))
-        self.bias = torch.nn.Parameter(2 * (torch.rand((out_size,)) - 0.5))
+        self.weight = RParam(in_size, out_size)
+        self.bias = RParam(out_size)
+        self.out_size = out_size
 
     def forward(self, x):
-        return x @ self.weight + self.bias
+        batch, in_size = x.shape
+        return (
+            self.weights.value.view(1, in_size, self.out_size)
+            * x.view(batch, in_size, 1)
+        ).sum(1).view(batch, self.out_size) + self.bias.value.view(1, self.out_size)
 
 
 class TorchTrain:
