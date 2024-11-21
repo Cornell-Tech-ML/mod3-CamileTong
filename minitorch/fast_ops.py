@@ -7,7 +7,6 @@ from numba import prange
 from numba import njit as _njit
 
 from .tensor_data import (
-    MAX_DIMS,
     broadcast_index,
     index_to_position,
     shape_broadcast,
@@ -174,22 +173,22 @@ def tensor_map(
             out_strides, in_strides
         )
 
+        out_size = np.prod(out_shape)
         # Fast path
         if is_aligned:
-            for i in prange(len(out)):
+            for i in prange(out_size):
                 out[i] = fn(in_storage[i])
         # Slow path
         else:
-            out_index = np.empty(MAX_DIMS, np.int32)
-            in_index = np.empty(MAX_DIMS, np.int32)
+            for i in prange(out_size):
+                # Fix Flaky
+                out_index = np.zeros(len(out_shape), dtype=np.int32)
+                in_index = np.zeros(len(in_shape), dtype=np.int32)
 
-            for i in prange(len(out)):
                 to_index(i, out_shape, out_index)
-                # broadcasting
                 broadcast_index(out_index, out_shape, in_shape, in_index)
-                out_pos = index_to_position(out_index, out_strides)
                 in_pos = index_to_position(in_index, in_strides)
-                out[out_pos] = fn(in_storage[in_pos])
+                out[i] = fn(in_storage[in_pos])
 
     return njit(_map, parallel=True)  # type: ignore
 
@@ -239,25 +238,22 @@ def tensor_zip(
         # Fast path - when tensors are aligned
         if is_aligned:
             for i in prange(len(out)):
-                out[i] = fn(
-                    float(a_storage[i]), float(b_storage[i])
-                )  # Convert to float
+                out[i] = fn(a_storage[i], b_storage[i])
         # Slow path - handle broadcasting
         else:
-            out_index = np.empty(MAX_DIMS, np.int32)
-            a_index = np.empty(MAX_DIMS, np.int32)
-            b_index = np.empty(MAX_DIMS, np.int32)
-
             for i in prange(len(out)):
+                # Fix Flaky
+                a_index = np.zeros(len(a_shape), dtype=np.int32)
+                b_index = np.zeros(len(b_shape), dtype=np.int32)
+                out_index = np.zeros(len(out_shape), dtype=np.int32)
+
                 to_index(i, out_shape, out_index)
                 broadcast_index(out_index, out_shape, a_shape, a_index)
                 broadcast_index(out_index, out_shape, b_shape, b_index)
-                out_pos = index_to_position(out_index, out_strides)
+
                 a_pos = index_to_position(a_index, a_strides)
                 b_pos = index_to_position(b_index, b_strides)
-                out[out_pos] = fn(
-                    float(a_storage[a_pos]), float(b_storage[b_pos])
-                )  # Convert to float
+                out[i] = fn(a_storage[a_pos], b_storage[b_pos])
 
     return njit(_zip, parallel=True)  # type: ignore
 
@@ -292,24 +288,31 @@ def tensor_reduce(
         a_strides: Strides,
         reduce_dim: int,
     ) -> None:
+        # TODO: 3.1
         reduce_size = a_shape[reduce_dim]
-        reduce_stride = a_strides[reduce_dim]
+        start = out[0]
 
-        # Process each output position in parallel
-        for i in prange(len(out)):
-            out_index = np.empty(MAX_DIMS, np.int32)
+        for i in prange(np.prod(out_shape)):
+            out_index = np.zeros(len(out_shape), dtype=np.int32)
+            a_index = np.zeros(len(a_shape), dtype=np.int32)
+            
+            # Convert flat index to tensor index
             to_index(i, out_shape, out_index)
+            
+            acc = start
 
-            # Get positions
-            out_pos = index_to_position(out_index, out_strides)
-            a_pos = index_to_position(out_index, a_strides)
-            acc = out[out_pos]
-
-            for _ in range(reduce_size):
+            # Reduce along the specified dimension
+            for j in range(reduce_size):
+                # Copy output index to input index
+                for k in range(len(out_shape)):
+                    a_index[k] = out_index[k]
+                # Set the reduction dimension index
+                a_index[reduce_dim] = j
+                
+                a_pos = index_to_position(a_index, a_strides)
                 acc = fn(acc, a_storage[a_pos])
-                a_pos += reduce_stride
 
-            out[out_pos] = acc
+            out[i] = acc
 
     return njit(_reduce, parallel=True)  # type: ignore
 

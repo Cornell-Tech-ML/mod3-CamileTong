@@ -329,7 +329,7 @@ class Tensor:
         else:
             return All.apply(self, self._ensure_tensor(dim))
 
-    def is_close(self, b: Tensor) -> Tensor:
+    def is_close(self, b: TensorLike) -> Tensor:
         """Check if the tensor is close to another tensor."""
         return IsClose.apply(self, b)
 
