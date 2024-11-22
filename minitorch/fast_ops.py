@@ -295,10 +295,10 @@ def tensor_reduce(
         for i in prange(np.prod(out_shape)):
             out_index = np.zeros(len(out_shape), dtype=np.int32)
             a_index = np.zeros(len(a_shape), dtype=np.int32)
-            
+
             # Convert flat index to tensor index
             to_index(i, out_shape, out_index)
-            
+
             acc = start
 
             # Reduce along the specified dimension
@@ -308,7 +308,7 @@ def tensor_reduce(
                     a_index[k] = out_index[k]
                 # Set the reduction dimension index
                 a_index[reduce_dim] = j
-                
+
                 a_pos = index_to_position(a_index, a_strides)
                 acc = fn(acc, a_storage[a_pos])
 
